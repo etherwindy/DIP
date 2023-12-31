@@ -1,0 +1,7 @@
+dataset/image/
+dataset/pretrain/
+dataset/label.csv
+output/
+pretrainedModel/
+__pycache__/
+*/__pycache__/
