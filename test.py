@@ -33,7 +33,7 @@ def main():
     
     DIP = model()
     DIP.load('./submit')
-    images_path = glob.glob(os.path.join(input_path + '*.png'))
+    images_path = glob.glob(os.path.join(input_path, '*.png'))
     header = True
     for image_path in images_path:
         image = cv2.imread(image_path)

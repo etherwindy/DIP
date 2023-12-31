@@ -45,7 +45,7 @@ python test.py -i ./dataset/image/ -o ./test.csv
 
 The program will process all PNG images in the input folder and write the results in a certain CSV file.
 
-To train a new model, you need to download dataset. We use [SMDG, A Standardized Fundus Glaucoma Dataset | Kaggle](https://www.kaggle.com/datasets/deathtrooper/multichannel-glaucoma-benchmark-dataset) to pretrain the model. You need to download the dataset:
+To train a new model, you need to download dataset. We use [SMDG, A Standardized Fundus Glaucoma Dataset | Kaggle](https://www.kaggle.com/datasets/deathtrooper/multichannel-glaucoma-benchmark-dataset) to pretrain the model:
 
 ```bash
 kaggle datasets download -d deathtrooper/multichannel-glaucoma-benchmark-dataset
@@ -75,7 +75,7 @@ Then fine tune the pretrained model:
 python main.py
 ```
 
-In each epoch a new model weight will be stored in `output` folder. You can choose the one you like:
+Model weights of each epoch will all be stored in `output` folder. You can choose the one you like:
 
 ```bash
 cp output/epoch_<select an epoch>.pth submit/model_weights.pth
