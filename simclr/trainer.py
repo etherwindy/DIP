@@ -4,6 +4,22 @@ import torch.nn.functional as F
 from torch import nn
 from torch.utils.tensorboard import SummaryWriter
 
+import math
+
+def adjust_learning_rate(optimizer, epoch, args):
+    """Decay the learning rate with half-cycle cosine after warmup"""
+    if epoch < args.warmup_epochs:
+        lr = args.lr * epoch / args.warmup_epochs 
+    else:
+        lr = args.min_lr + (args.lr - args.min_lr) * 0.5 * \
+            (1. + math.cos(math.pi * (epoch - args.warmup_epochs) / (args.epochs - args.warmup_epochs)))
+    for param_group in optimizer.param_groups:
+        if "lr_scale" in param_group:
+            param_group["lr"] = lr * param_group["lr_scale"]
+        else:
+            param_group["lr"] = lr
+    return lr
+
 class NTXentLoss(nn.Module):
     def __init__(self, temperature=1.0):
         super(NTXentLoss, self).__init__()
@@ -38,8 +54,8 @@ class NTXentLoss(nn.Module):
         return loss
 
 
-def contrastive_trainer(model, train_loader, num_epochs, temperature, device, learning_rate=0.001, weight_decay=1e-5):
-    writer = SummaryWriter("pretrainedModel")
+def contrastive_trainer(model, train_loader, num_epochs, temperature, device, learning_rate=0.001, weight_decay=1e-5, args=None):
+    writer = SummaryWriter("pretrainedModel/resnet")
     criterion = NTXentLoss(temperature)
     optimizer = optim.Adam(model.parameters(), lr=learning_rate, weight_decay=weight_decay)
 
@@ -48,20 +64,14 @@ def contrastive_trainer(model, train_loader, num_epochs, temperature, device, le
 
     for epoch in range(num_epochs):
         for i, (x1, x2) in enumerate(train_loader):
+            adjust_learning_rate(optimizer, i / len(train_loader) + epoch, args)
+            
             x1 = x1.to(device, torch.float32)
             x2 = x2.to(device, torch.float32)
             x = torch.cat([x1, x2], dim=0)
             optimizer.zero_grad()
-            try:
-                z = model(x)
-            except RuntimeError as exception:
-                if "out of memory" in str(exception):
-                    print("WARNING: out of memory")
-                    if hasattr(torch.cuda, 'empty_cache'):
-                        torch.cuda.empty_cache()
-                        z = model(x)
-                else:
-                    raise exception
+            z = model(x)
+
             loss = criterion(z)
             loss.backward()
             optimizer.step()

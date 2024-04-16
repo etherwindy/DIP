@@ -1,7 +1,24 @@
-dataset/image/
+dataset/image*
 dataset/pretrain/
-dataset/label.csv
+dataset/label*
 output/
 pretrainedModel/
 __pycache__/
 */__pycache__/
+*/*.pth
+*/*.pt
+*/*.log
+*/*.txt
+*/*.json
+*/*.csv
+*/*.yaml
+*/*.yml
+*/*.pkl
+*/*.pickle
+*/*.ckpt
+*/*.ckpt.*
+*/*.ckpt-*
+dataset/1-Hypertensive Classification.zip
+submit/submit.zip
+submit/model_weights.pth
+submit_vit/submit.zip

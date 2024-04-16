@@ -61,3 +61,29 @@ class ResNet(nn.Module):
     def forward(self, x):
         y = self.backbone(x)
         return torch.sigmoid(y)
+
+class VggNet(nn.Module):
+    def __init__(self, pretrained=False):
+
+        super(VggNet, self).__init__()
+        vgg = models.vgg16(pretrained=pretrained)
+        num_features = vgg.classifier[6].in_features
+        vgg.classifier[6] = nn.Linear(num_features, 1)
+        self.backbone = vgg
+
+    def forward(self, x):
+        y = self.backbone(x)
+        return torch.sigmoid(y)
+
+class DenseNet(nn.Module):
+    def __init__(self, pretrained=False):
+
+        super(DenseNet, self).__init__()
+        densenet = models.densenet121(pretrained=pretrained)
+        num_features = densenet.classifier.in_features
+        densenet.classifier = nn.Linear(num_features, 1)
+        self.backbone = densenet
+
+    def forward(self, x):
+        y = self.backbone(x)
+        return torch.sigmoid(y)

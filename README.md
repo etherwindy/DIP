@@ -31,20 +31,6 @@ conda env create -f environment.yaml
 conda activate dip
 ```
 
-If you only want to use our trained model, just run:
-
-```bash
-python test.py -i <image dir path> -o <output csv file>
-```
-
-For example:
-
-```bash
-python test.py -i ./dataset/image/ -o ./test.csv
-```
-
-The program will process all PNG images in the input folder and write the results in a certain CSV file.
-
 To train a new model, you need to download dataset. We use [SMDG, A Standardized Fundus Glaucoma Dataset | Kaggle](https://www.kaggle.com/datasets/deathtrooper/multichannel-glaucoma-benchmark-dataset) to pretrain the model:
 
 ```bash
@@ -57,38 +43,34 @@ rm -rf SMPG/ multichannel-glaucoma-benchmark-dataset.zip
 Then pretrain the model:
 
 ```bash
-python pretrain.py
+// resnet
+python pretrain_resnet.py --batch_size=64 --epochs=100 --temperature=0.07 --lr=1e-4 --min_lr=1e-5 --warmup_epochs=10 --weight_decay=1e-5 --img_siz=(512,512) --gpu=0
+// vit
+python pretrain_vit.py --model=mae_vit_base_patch16 --mask_ratio=0.75 --accum_iter=1 --warmup_epochs=10 --batch_size=128 --epochs=100 --lr=1e-4 --min_lr=1e-5 --weight_decay=1e-5 --gpu=0
+// vgg
+python pretrain_vgg.py --batch_size=64 --epochs=100 --temperature=0.07 --lr=1e-4 --min_lr=1e-5 --warmup_epochs=10 --weight_decay=1e-5 --img_size=(224,224) --gpu=0
+// densenet
+python pretrain_densenet.py --batch_size=64 --epochs=20 --temperature=0.07 --lr=1e-4 --min_lr=1e-5 --warmup_epochs=4 --weight_decay=1e-5 --img_siz=(224,224) --gpu=0
 ```
 
-In fine-tuning stage, first you need to download the competition labeled training set. Put the images under `dataset/image` file (`dataset/image/*.png`) and the CSV file should be `dataset/label.csv`. Then augment the dataset:
+In fine-tuning stage, first you need to download the competition labeled training set. Put the images under `dataset/image_original` file (The path of images are `dataset/image_original/*.png`). Then rename the CSV file  `label_original.csv` and put it under `dataset/`. Then split and augment the dataset:
 
 ```bash
 cd dataset
+python split_data.py
 python augmentation_flip.py
 python augmentation_light.py
 cd ../
 ```
 
-Then fine tune the pretrained model:
+Then finetune the pretrained model:
 
 ```bash
-python main.py
+// resnet
+python finetune_resnet.py --img_size=(512,512) --batch_size=64 --val_batch_size=64 --epochs=20 --warmup_epochs=4 --lr=1e-4 --min_lr=1e-5 --weight_decay=1e-4 --gpu=0
+python finetune_vit.py --model=vit_base_patch16 --nb_classes=2 --global_pool='avg' --drop_path=0.1 --mask_ratio=0.75  --accum_iter=1 --epochs=20 --warmup_epochs=2 --batch_size=64 --val_batch_size=64 --lr=1e-4 --min_lr=1d-6 --weight_decay=1e-4 --gpu=0
+python finetune_vgg.py --img_size=(224,224) --batch_size=64 --val_batch_size=64 --epochs=20 --warmup_epochs=4 --lr=1e-4 --min_lr=1e-5 --weight_decay=1e-4 --gpu=0
+python finetune_densenet.py --img_size=(224,224) --batch_size=64 --val_batch_size=64 --epochs=20 --warmup_epochs=4 --lr=1e-4 --min_lr=1e-5 --weight_decay=1e-4 --gpu=0
 ```
 
-Model weights of each epoch will all be stored in `output` folder. You can choose the one you like:
-
-```bash
-cp output/epoch_<select an epoch>.pth submit/model_weights.pth
-```
-
-For example:
-
-```bash
-cp output/epoch_19.pth submit/model_weights.pth
-```
-
-Then you can use your new model:
-
-```bash
-python test.py -i <image dir path> -o <output csv file>
-```
+Model weights of each epoch will all be stored in `output` folder. To submit your model, you need to move your model file to `submit/` (for VIT model, move it to submit_vit/) and rename it as 'model_weights.pth'. Then zip all files in the folder. `submit/model.py` is defaultly set for ResNet. If you want to submit other model, remember to update your code.
