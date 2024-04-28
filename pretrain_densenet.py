@@ -9,12 +9,6 @@ from simclr import trainer
 from torch.utils.data import DataLoader
 
 
-batch_size = 128
-epochs = 10
-temperature = 0.07
-lr = 1e-4
-weight_decay = 1e-5
-
 def get_args_parser():
     parser = argparse.ArgumentParser(description='Pretrain DenseNet')
     parser.add_argument('--batch_size', default=64, type=int, help='batch size')

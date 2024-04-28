@@ -12,12 +12,6 @@ from submit.model import VggNet
 from dataloader import create_dataloader
 from metric import classification_metrics
 
-# TODO: hyperparameter
-EPOCH_NUM = 20
-TRAIN_BATCH_SIZE = 64
-VAL_BATCH_SIZE = 64
-lr = 5e-5
-weight_decay = 1e-5
 
 def get_args_parser():
     parser = argparse.ArgumentParser(description='Fine-tune VggNet')
@@ -71,19 +65,19 @@ def main(args):
     writer = SummaryWriter("output/vgg")
 
     model = VggNet()
-    #backbone = torch.load("pretrainedModel/resnet/resnet.pth")
-    #features = model.backbone.fc.in_features
-    #backbone.fc = nn.Linear(features, 1)
-    #model.backbone = backbone
+    backbone = torch.load("pretrainedModel/resnet/resnet.pth")
+    features = model.backbone.fc.in_features
+    backbone.fc = nn.Linear(features, 1)
+    model.backbone = backbone
     model.to(device)
     
     criterion = torch.nn.BCELoss()
     train_loader, val_loader = create_dataloader(args.batch_size, args.val_batch_size, img_size=args.img_size, preprocess=True)
-    optimizer = torch.optim.AdamW(model.parameters(), lr=lr, weight_decay=args.weight_decay)
+    optimizer = torch.optim.AdamW(model.parameters(), lr=args.lr, weight_decay=args.weight_decay)
     
     max_score = 0
     
-    for epoch in range(EPOCH_NUM):
+    for epoch in range(args.epochs):
         model.train()
         for i, (image, label) in enumerate(train_loader):
             adjust_learning_rate(optimizer, i / len(train_loader) + epoch, args)
@@ -98,7 +92,7 @@ def main(args):
             loss.backward()
             optimizer.step()
 
-            print(f'Epoch [{epoch}/{EPOCH_NUM - 1}], Step [{i + 1}/{len(train_loader)}], Loss: {loss.item()}')
+            print(f'Epoch [{epoch}/{args.epochs - 1}], Step [{i + 1}/{len(train_loader)}], Loss: {loss.item()}')
             SummaryWriter.add_scalar(writer, 'train_loss', loss.item(), epoch * len(train_loader) + i)
 
         print(f"Saving weights of epoch {epoch}...")
