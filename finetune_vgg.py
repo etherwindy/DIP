@@ -20,7 +20,7 @@ lr = 5e-5
 weight_decay = 1e-5
 
 def get_args_parser():
-    parser = argparse.ArgumentParser(description='Train Masked Autoencoder ViT')
+    parser = argparse.ArgumentParser(description='Fine-tune VggNet')
     parser.add_argument('--img_size', default=(224, 224), type=tuple, help='image size')
     parser.add_argument('--warmup_epochs', default=4, type=int, help='warmup epochs')
     parser.add_argument('--batch_size', default=64, type=int, help='batch size')
@@ -33,8 +33,8 @@ def get_args_parser():
     return parser
 
 
-def load_weights(model, save_dir: str, epoch: int, device):
-    weight_file = os.path.join(save_dir, f"epoch_{epoch}.pth")
+def load_weights(model, save_dir: str, epoch: str, device):
+    weight_file = os.path.join(save_dir, f"{epoch}.pth")
     state_dict = torch.load(weight_file, map_location=device)
     state_dict = {k[len("module."):]: v for k, v in state_dict.items() if k.startswith("module.")}
     model.load_state_dict(state_dict)
@@ -81,6 +81,8 @@ def main(args):
     train_loader, val_loader = create_dataloader(args.batch_size, args.val_batch_size, img_size=args.img_size, preprocess=True)
     optimizer = torch.optim.AdamW(model.parameters(), lr=lr, weight_decay=args.weight_decay)
     
+    max_score = 0
+    
     for epoch in range(EPOCH_NUM):
         model.train()
         for i, (image, label) in enumerate(train_loader):
@@ -100,7 +102,7 @@ def main(args):
             SummaryWriter.add_scalar(writer, 'train_loss', loss.item(), epoch * len(train_loader) + i)
 
         print(f"Saving weights of epoch {epoch}...")
-        save_weights(model, "output/vgg", epoch)
+        save_weights(model, "output/vgg", "latest")
 
         model.eval()
         with torch.no_grad():
@@ -121,8 +123,11 @@ def main(args):
             score = (metric["qwk"] + metric["f1"] + metric["spe"]) / 3
             print(metric, score)
             SummaryWriter.add_scalar(writer, 'score', score, epoch * len(train_loader) + i)
+            if score > max_score:
+                max_score = score
+                print(f"Saving best weights of epoch {epoch}...")
+                save_weights(model, "output/vgg", "best")
     
-
 if __name__ == "__main__":
     args = get_args_parser()
     args = args.parse_args()

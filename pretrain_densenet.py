@@ -16,7 +16,7 @@ lr = 1e-4
 weight_decay = 1e-5
 
 def get_args_parser():
-    parser = argparse.ArgumentParser(description='Train Masked Autoencoder ViT')
+    parser = argparse.ArgumentParser(description='Pretrain DenseNet')
     parser.add_argument('--batch_size', default=64, type=int, help='batch size')
     parser.add_argument('--epochs', default=100, type=int, help='number of epochs')
     parser.add_argument('--temperature', default=0.07, type=float, help='temperature')

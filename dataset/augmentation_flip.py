@@ -9,7 +9,7 @@ def flip_images_in_folder(folder_path):
         return
 
 
-    csv = pd.read_csv('label_train.csv')
+    csv = pd.read_csv('label_test.csv')
     # 循环处理每个文件
     n = len(csv)
     for idx in range(n):
@@ -29,7 +29,7 @@ def flip_images_in_folder(folder_path):
                 flipped_img.save(path)
                 data = {'image':new_image,'label':label}
                 nd = pd.DataFrame(data,index=[0])
-                nd.to_csv('label_train.csv',mode='a',header=False,index=False)
+                nd.to_csv('label_test.csv',mode='a',header=False,index=False)
                 print(f"已翻转图片 '{image}' 并保存为 '{new_image}', 标签为{label}。")
             except Exception as e:
                 print(f"处理文件 '{image}' 时出现错误：{e}")
@@ -37,7 +37,7 @@ def flip_images_in_folder(folder_path):
             print(f"文件 '{image}' 不是图片文件，跳过翻转。")
 
 # 指定要翻转图片的文件夹路径和输出文件夹路径
-folder_path = 'image_train'
+folder_path = 'image_test'
 
 # 调用函数翻转图片
 flip_images_in_folder(folder_path)

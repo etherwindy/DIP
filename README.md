@@ -51,6 +51,8 @@ python pretrain_vit.py --model=mae_vit_base_patch16 --mask_ratio=0.75 --accum_it
 python pretrain_vgg.py --batch_size=64 --epochs=100 --temperature=0.07 --lr=1e-4 --min_lr=1e-5 --warmup_epochs=10 --weight_decay=1e-5 --img_size=(224,224) --gpu=0
 // densenet
 python pretrain_densenet.py --batch_size=64 --epochs=20 --temperature=0.07 --lr=1e-4 --min_lr=1e-5 --warmup_epochs=4 --weight_decay=1e-5 --img_siz=(224,224) --gpu=0
+// efficientnet
+python pretrain_efficientnet.py --batch_size=64 --epochs=20 --temperature=0.07 --lr=1e-4 --min_lr=1e-5 --warmup_epochs=4 --weight_decay=1e-5 --img_siz=(224,224) --gpu=0
 ```
 
 In fine-tuning stage, first you need to download the competition labeled training set. Put the images under `dataset/image_original` file (The path of images are `dataset/image_original/*.png`). Then rename the CSV file  `label_original.csv` and put it under `dataset/`. Then split and augment the dataset:
@@ -67,10 +69,15 @@ Then finetune the pretrained model:
 
 ```bash
 // resnet
-python finetune_resnet.py --img_size=(512,512) --batch_size=64 --val_batch_size=64 --epochs=20 --warmup_epochs=4 --lr=1e-4 --min_lr=1e-5 --weight_decay=1e-4 --gpu=0
-python finetune_vit.py --model=vit_base_patch16 --nb_classes=2 --global_pool='avg' --drop_path=0.1 --mask_ratio=0.75  --accum_iter=1 --epochs=20 --warmup_epochs=2 --batch_size=64 --val_batch_size=64 --lr=1e-4 --min_lr=1d-6 --weight_decay=1e-4 --gpu=0
-python finetune_vgg.py --img_size=(224,224) --batch_size=64 --val_batch_size=64 --epochs=20 --warmup_epochs=4 --lr=1e-4 --min_lr=1e-5 --weight_decay=1e-4 --gpu=0
-python finetune_densenet.py --img_size=(224,224) --batch_size=64 --val_batch_size=64 --epochs=20 --warmup_epochs=4 --lr=1e-4 --min_lr=1e-5 --weight_decay=1e-4 --gpu=0
+python finetune_resnet.py --img_size=(512,512) --batch_size=64 --val_batch_size=64 --epochs=100 --warmup_epochs=4 --lr=1e-4 --min_lr=1e-7 --weight_decay=1e-5 --gpu=0
+// vit
+python finetune_vit.py --model=vit_base_patch16 --bce --nb_classes=1 --global_pool='avg' --drop_path=0.1 --mask_ratio=0.75  --accum_iter=1 --epochs=100 --warmup_epochs=2 --batch_size=64 --val_batch_size=64 --lr=1e-4 --min_lr=1d-7 --weight_decay=1e-5 --gpu=0
+// vgg
+python finetune_vgg.py --img_size=(224,224) --batch_size=64 --val_batch_size=64 --epochs=100 --warmup_epochs=4 --lr=1e-4 --min_lr=1e-7 --weight_decay=1e-5 --gpu=0
+// densenet
+python finetune_densenet.py --img_size=(224,224) --batch_size=64 --val_batch_size=64 --epochs=100 --warmup_epochs=4 --lr=1e-4 --min_lr=1e-7 --weight_decay=1e-5 --gpu=0
+// efficientnet
+python finetune_efficientnet.py --img_size=(224,224) --batch_size=64 --val_batch_size=64 --epochs=100 --warmup_epochs=4 --lr=1e-4 --min_lr=1e-7 --weight_decay=1e-5 --gpu=0
 ```
 
-Model weights of each epoch will all be stored in `output` folder. To submit your model, you need to move your model file to `submit/` (for VIT model, move it to submit_vit/) and rename it as 'model_weights.pth'. Then zip all files in the folder. `submit/model.py` is defaultly set for ResNet. If you want to submit other model, remember to update your code.
+Model weights of best model and latest model be stored in `output` folder. To submit your model, you need to move your model file to `submit/` (for VIT model, move it to submit_vit/) and rename it as 'model_weights.pth'. Then zip all files in the folder. `submit/model.py` is defaultly set for ResNet. If you want to submit other model, remember to update your code.

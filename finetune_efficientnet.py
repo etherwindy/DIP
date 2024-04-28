@@ -8,34 +8,33 @@ import torch.nn as nn
 import torch.multiprocessing as mp
 from torch.utils.tensorboard import SummaryWriter
 
-from submit.model import ResNet
+from submit.model import EfficientNet
 from dataloader import create_dataloader
 from metric import classification_metrics
 
-
 def get_args_parser():
-    parser = argparse.ArgumentParser(description='Fine-tune ResNet')
-    parser.add_argument('--img_size', default=(400, 400), type=tuple, help='image size')
-    parser.add_argument('--warmup_epochs', default=4, type=int, help='warmup epochs')
+    parser = argparse.ArgumentParser(description='Fine-tune EfficientNet')
+    parser.add_argument('--img_size', default=(224, 224), type=tuple, help='image size')
+    parser.add_argument('--warmup_epochs', default=10, type=int, help='warmup epochs')
     parser.add_argument('--batch_size', default=64, type=int, help='batch size')
     parser.add_argument('--val_batch_size', default=64, type=int, help='val batch size')
-    parser.add_argument('--epochs', default=20, type=int, help='number of epochs')
+    parser.add_argument('--epochs', default=40, type=int, help='number of epochs')
     parser.add_argument('--lr', default=1e-4, type=float, help='learning rate')
-    parser.add_argument('--min_lr', default=1e-6, type=float, help='minimum learning rate')
-    parser.add_argument('--weight_decay', default=1e-4, type=float, help='weight decay')
+    parser.add_argument('--min_lr', default=1e-7, type=float, help='minimum learning rate')
+    parser.add_argument('--weight_decay', default=1e-5, type=float, help='weight decay')
     parser.add_argument('--gpu', default=0, type=int, help='gpu id')
     return parser
 
 
-def load_weights(model, save_dir: str, epoch: str, device):
-    weight_file = os.path.join(save_dir, f"{epoch}.pth")
+def load_weights(model, save_dir: str, epoch: int, device):
+    weight_file = os.path.join(save_dir, f"epoch_{epoch}.pth")
     state_dict = torch.load(weight_file, map_location=device)
     state_dict = {k[len("module."):]: v for k, v in state_dict.items() if k.startswith("module.")}
     model.load_state_dict(state_dict)
 
 
-def save_weights(model, save_dir: str, epoch: int):
-    weight_file = os.path.join(save_dir, f"epoch_{epoch}.pth")
+def save_weights(model, save_dir: str, epoch: str):
+    weight_file = os.path.join(save_dir, f"{epoch}.pth")
     torch.save(model.state_dict(), weight_file)
 
 def adjust_learning_rate(optimizer, epoch, args):
@@ -62,12 +61,15 @@ def main(args):
     if not os.path.exists("output"):
         os.mkdir("output")
 
-    writer = SummaryWriter("output/resnet")
+    writer = SummaryWriter("output/efficientnet")
 
-    model = ResNet()
-    backbone = torch.load("pretrainedModel/resnet/resnet.pth")
-    features = model.backbone.fc.in_features
-    backbone.fc = nn.Linear(features, 1)
+    model = EfficientNet()
+    backbone = torch.load("pretrainedModel/efficientnet/efficientnet.pth")
+    features = model.backbone.classifier[1].in_features
+    backbone.classifier = nn.Sequential(
+        nn.Dropout(p=0.3, inplace=False),
+        nn.Linear(in_features=features, out_features=1)
+    )
     model.backbone = backbone
     model.to(device)
     
@@ -96,7 +98,7 @@ def main(args):
             SummaryWriter.add_scalar(writer, 'train_loss', loss.item(), epoch * len(train_loader) + i)
 
         print(f"Saving weights of epoch {epoch}...")
-        save_weights(model, "output/resnet", "latest")
+        save_weights(model, "output/efficientnet", "latest")
 
         model.eval()
         with torch.no_grad():
@@ -120,8 +122,7 @@ def main(args):
             if score > max_score:
                 max_score = score
                 print(f"Saving best weights of epoch {epoch}...")
-                save_weights(model, "output/resnet", "best")
-    
+                save_weights(model, "output/efficientnet", "best")
 
 if __name__ == "__main__":
     args = get_args_parser()

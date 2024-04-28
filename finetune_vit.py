@@ -17,7 +17,7 @@ from mae.util.pos_embed import interpolate_pos_embed
 from mae.util.lr_sched import adjust_learning_rate
 
 def get_args_parser():
-    parser = argparse.ArgumentParser(description='Train Masked Autoencoder ViT')
+    parser = argparse.ArgumentParser(description='Fine-tune Vision Transformer')
     parser.add_argument('--supervise', action="store_true", help='supervised training')
     parser.add_argument('--model', default='vit_base_patch16', type=str, metavar='MODEL', help='Name of model to train')
     parser.add_argument('--nb_classes', default=2, type=int, help='number of classes')
@@ -29,10 +29,10 @@ def get_args_parser():
     parser.add_argument('--warmup_epochs', default=2, type=int, help='warmup epochs')
     parser.add_argument('--batch_size', default=64, type=int, help='batch size')
     parser.add_argument('--val_batch_size', default=64, type=int, help='val batch size')
-    parser.add_argument('--epochs', default=20, type=int, help='number of epochs')
-    parser.add_argument('--lr', default=1e-4, type=float, help='learning rate')
-    parser.add_argument('--min_lr', default=1e-6, type=float, help='minimum learning rate')
-    parser.add_argument('--weight_decay', default=1e-4, type=float, help='weight decay')
+    parser.add_argument('--epochs', default=100, type=int, help='number of epochs')
+    parser.add_argument('--lr', default=2e-4, type=float, help='learning rate')
+    parser.add_argument('--min_lr', default=1e-7, type=float, help='minimum learning rate')
+    parser.add_argument('--weight_decay', default=1e-5, type=float, help='weight decay')
     parser.add_argument('--bce', action="store_true", help='use BCE loss')
     parser.add_argument('--smoothing', default=0, type=float, help='label smoothing')
     parser.add_argument('--gpu', default=0, type=int, help='gpu id')
@@ -46,8 +46,8 @@ def load_weights(model, save_dir: str, epoch: int, device):
     model.load_state_dict(state_dict)
 
 
-def save_weights(model, save_dir: str, epoch: int):
-    weight_file = os.path.join(save_dir, f"epoch_{epoch}.pth")
+def save_weights(model, save_dir: str, epoch: str):
+    weight_file = os.path.join(save_dir, f"{epoch}.pth")
     torch.save(model.state_dict(), weight_file)
 
 
@@ -61,7 +61,7 @@ def main(args):
     if not os.path.exists("output"):
         os.mkdir("output")
 
-    writer = SummaryWriter("output/vit")
+    writer = SummaryWriter("output/vit_cls")
 
     model = models_vit.__dict__[args.model](
         num_classes=args.nb_classes,
@@ -88,6 +88,8 @@ def main(args):
     train_loader, val_loader = create_dataloader(args.batch_size, args.val_batch_size, img_size=(224, 224), preprocess=args.preprocess)
     optimizer = torch.optim.AdamW(model.parameters(), lr=args.lr, weight_decay=args.weight_decay)
     
+    max_score = 0
+    
     for epoch in range(args.epochs):
         model.train()
         for i, (image, label) in enumerate(train_loader):
@@ -111,8 +113,7 @@ def main(args):
             print(f'Epoch [{epoch}/{args.epochs - 1}], Step [{i + 1}/{len(train_loader)}], Loss: {loss.item()}, Acc: {acc}')
             SummaryWriter.add_scalar(writer, 'train_loss', loss.item(), epoch * len(train_loader) + i)
 
-        print(f"Saving weights of epoch {epoch}...")
-        save_weights(model, "output/vit", epoch)
+        save_weights(model, "output/vit_cls", 'latest')
 
         model.eval()
         with torch.no_grad():
@@ -137,7 +138,11 @@ def main(args):
             score = (metric["qwk"] + metric["f1"] + metric["spe"]) / 3
             print(metric, score)
             SummaryWriter.add_scalar(writer, 'score', score, epoch * len(train_loader) + i)
-    
+            
+            if score > max_score:
+                max_score = score
+                print(f"Saving best weights of epoch {epoch}...")
+                save_weights(model, "output/vit_cls", "best")
 
 if __name__ == "__main__":
     args = get_args_parser()

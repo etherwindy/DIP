@@ -10,7 +10,7 @@ from mae import models_mae
 
 
 def get_args_parser():
-    parser = argparse.ArgumentParser(description='Train Masked Autoencoder ViT')
+    parser = argparse.ArgumentParser(description='pretain ViT')
     parser.add_argument('--model', default='mae_vit_base_patch16', type=str, metavar='MODEL', help='Name of model to train')
     parser.add_argument('--mask_ratio', default=0.75, type=float, help='mask ratio')
     parser.add_argument('--accum_iter', default=1, type=int, help='gradient accumulation steps')

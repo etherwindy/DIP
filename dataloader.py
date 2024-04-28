@@ -33,7 +33,7 @@ class MyDatasetWithPreprocess(Dataset):
         image = preprocess_image(image)
         image = cv2.resize(image, self.img_size, interpolation=cv2.INTER_LINEAR)
         image = image / 255.0
-        image = random_rotation(image, max_angle=10)
+        image = random_rotation(image, max_angle=20)
         image = np.moveaxis(image, -1, 0)
         label = self.csv_file.iloc[idx, 1]
 
@@ -45,6 +45,10 @@ class MyDataset(Dataset):
         self.csv_file = pd.read_csv(csv_file)
         self.transform = transform
         self.img_size = img_size
+        self.sigma = 20
+        self.radius = self.img_size[0] // 2
+        X, Y = np.ogrid[:2*self.radius, :2*self.radius]
+        self.mask = (X - self.radius)**2 + (Y - self.radius)**2 > self.radius**2
 
     def __len__(self):
         return len(self.csv_file)
@@ -54,7 +58,13 @@ class MyDataset(Dataset):
 
         image = cv2.imread(image_path)
         image = cv2.resize(image, self.img_size, interpolation=cv2.INTER_LINEAR)
-        image = random_rotation(image, max_angle=20)
+        image = random_rotation(image, max_angle=180)
+        gaussian = np.random.normal(0, self.sigma, image.shape).astype(np.int16)
+        image = image.astype(np.int16)
+        image = cv2.add(image, gaussian)
+        image = image.clip(min=0, max=255).astype(np.uint8)
+        image[self.mask] = 0
+        image = image.astype(np.float32)
         image = np.moveaxis(image, -1, 0)
         label = self.csv_file.iloc[idx, 1]
 

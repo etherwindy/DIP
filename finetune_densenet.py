@@ -8,26 +8,19 @@ import torch.nn as nn
 import torch.multiprocessing as mp
 from torch.utils.tensorboard import SummaryWriter
 
-from submit.model import DenseNet
+from submit.model import DenseNet121 as DenseNet
 from dataloader import create_dataloader
 from metric import classification_metrics
 
-# TODO: hyperparameter
-EPOCH_NUM = 20
-TRAIN_BATCH_SIZE = 64
-VAL_BATCH_SIZE = 64
-lr = 5e-5
-weight_decay = 1e-5
-
 def get_args_parser():
-    parser = argparse.ArgumentParser(description='Train Masked Autoencoder ViT')
+    parser = argparse.ArgumentParser(description='Fine-tune DenseNet')
     parser.add_argument('--img_size', default=(224, 224), type=tuple, help='image size')
-    parser.add_argument('--warmup_epochs', default=4, type=int, help='warmup epochs')
+    parser.add_argument('--warmup_epochs', default=2, type=int, help='warmup epochs')
     parser.add_argument('--batch_size', default=64, type=int, help='batch size')
     parser.add_argument('--val_batch_size', default=64, type=int, help='val batch size')
-    parser.add_argument('--epochs', default=20, type=int, help='number of epochs')
+    parser.add_argument('--epochs', default=100, type=int, help='number of epochs')
     parser.add_argument('--lr', default=1e-4, type=float, help='learning rate')
-    parser.add_argument('--min_lr', default=1e-5, type=float, help='minimum learning rate')
+    parser.add_argument('--min_lr', default=1e-7, type=float, help='minimum learning rate')
     parser.add_argument('--weight_decay', default=1e-5, type=float, help='weight decay')
     parser.add_argument('--gpu', default=0, type=int, help='gpu id')
     return parser
@@ -40,8 +33,8 @@ def load_weights(model, save_dir: str, epoch: int, device):
     model.load_state_dict(state_dict)
 
 
-def save_weights(model, save_dir: str, epoch: int):
-    weight_file = os.path.join(save_dir, f"epoch_{epoch}.pth")
+def save_weights(model, save_dir: str, epoch: str):
+    weight_file = os.path.join(save_dir, f"{epoch}.pth")
     torch.save(model.state_dict(), weight_file)
 
 def adjust_learning_rate(optimizer, epoch, args):
@@ -79,9 +72,11 @@ def main(args):
     
     criterion = torch.nn.BCELoss()
     train_loader, val_loader = create_dataloader(args.batch_size, args.val_batch_size, img_size=args.img_size, preprocess=True)
-    optimizer = torch.optim.AdamW(model.parameters(), lr=lr, weight_decay=args.weight_decay)
+    optimizer = torch.optim.AdamW(model.parameters(), lr=args.lr, weight_decay=args.weight_decay)
     
-    for epoch in range(EPOCH_NUM):
+    max_score = 0
+    
+    for epoch in range(args.epochs):
         model.train()
         for i, (image, label) in enumerate(train_loader):
             adjust_learning_rate(optimizer, i / len(train_loader) + epoch, args)
@@ -91,16 +86,17 @@ def main(args):
 
             output = model(image).squeeze()
             loss = criterion(output, label)
+            acc = torch.sum(torch.where(output > 0.5, torch.ones_like(output), torch.zeros_like(output)) == label).item() / len(label)
 
             optimizer.zero_grad()
             loss.backward()
             optimizer.step()
 
-            print(f'Epoch [{epoch}/{EPOCH_NUM - 1}], Step [{i + 1}/{len(train_loader)}], Loss: {loss.item()}')
+            print(f'Epoch [{epoch}/{args.epochs - 1}], Step [{i + 1}/{len(train_loader)}], Loss: {loss.item()}, Acc: {acc}')
             SummaryWriter.add_scalar(writer, 'train_loss', loss.item(), epoch * len(train_loader) + i)
 
         print(f"Saving weights of epoch {epoch}...")
-        save_weights(model, "output/densenet", epoch)
+        save_weights(model, "output/densenet", "latest")
 
         model.eval()
         with torch.no_grad():
@@ -121,7 +117,12 @@ def main(args):
             score = (metric["qwk"] + metric["f1"] + metric["spe"]) / 3
             print(metric, score)
             SummaryWriter.add_scalar(writer, 'score', score, epoch * len(train_loader) + i)
+            if score > max_score:
+                max_score = score
+                print(f"Saving best weights of epoch {epoch}...")
+                save_weights(model, "output/densenet", "best")
     
+    print("max score: ", max_score)
 
 if __name__ == "__main__":
     args = get_args_parser()
